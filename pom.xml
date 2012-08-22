@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<artifactId>randi3</artifactId>
+		<groupId>org.randi3</groupId>
+		<version>0.0.1-SNAPSHOT</version>
+	</parent>
+	<artifactId>randi3-openclinica</artifactId>
+	<version>0.1-SNAPSHOT</version>
+	<name>${project.artifactId}</name>
+	<description>My wonderfull scala app</description>
+	<inceptionYear>2010</inceptionYear>
+
+
+	<dependencies>
+		<dependency>
+			<groupId>org.randi3</groupId>
+			<artifactId>randi3-core</artifactId>
+			<version>0.1-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-httpclient</groupId>
+			<artifactId>commons-httpclient</artifactId>
+			<version>3.1</version>
+		</dependency>
+<dependency>
+  <groupId>xerces</groupId>
+  <artifactId>xercesImpl</artifactId>
+  <version>2.9.1</version>
+</dependency>
+<dependency>
+	<groupId>org.ccil.cowan.tagsoup</groupId>
+	<artifactId>tagsoup</artifactId>
+	<version>1.2</version>
+</dependency>
+	</dependencies>
+
+</project>
