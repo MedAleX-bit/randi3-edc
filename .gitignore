@@ -1,3 +1,4 @@
+*.log
 .cache
 # use glob syntax.
 syntax: glob

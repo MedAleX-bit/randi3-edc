@@ -1,15 +1,16 @@
-package org.randi3.openclinica.service
-import org.randi3.model.{ TrialSubject, Trial }
+package org.randi3.edc.service
+import org.randi3.model.{TrialSite, TrialSubject, Trial}
 import org.randi3.model.criterion._
 import org.apache.commons.httpclient.HttpClient
 import scala.xml._
-import org.randi3.openclinica.model._
+import org.randi3.edc.model.openClinica._
 import scala.annotation.tailrec
 import org.randi3.openclinica.cdisc.CDISCUtility._
 
 import org.xml.sax._
 import parsing._
 import org.ccil.cowan.tagsoup.jaxp.SAXFactoryImpl
+import org.randi3.edc.model.openClinica.TrialOC
 
 class OpenClinicaService {
 
@@ -34,7 +35,7 @@ class OpenClinicaService {
 
   private def message(bodyContent: Elem, beanSchema: String): Elem = {
     <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:v1={ beanSchema } xmlns:bean="http://openclinica.org/ws/beans">
-      { header("root", "a3adf26e70b8d8ab53da3d36b159ccb341d014e6") }
+      { header("root", "5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8") }
       <soapenv:Body>
         { bodyContent }
       </soapenv:Body>
@@ -102,7 +103,8 @@ class OpenClinicaService {
 
   private def extractSubjectsOnlyWithIdentifier(subjectNodes: NodeSeq): List[TrialSubject] = {
     if (subjectNodes.isEmpty) return List()
-    new TrialSubject(identifier = (subjectNodes.head \\ "label").text, properties = Nil) :: extractSubjectsOnlyWithIdentifier(subjectNodes.tail)
+    val dummySite = TrialSite(Int.MinValue, 0, "validName", "validCountry", "validStreet", "validPostCode", "validCity", "password", true).toOption.get
+    TrialSubject(identifier = (subjectNodes.head \\ "label").text, properties = Nil, investigatorUserName = "dummy user", trialSite = dummySite).toOption.get :: extractSubjectsOnlyWithIdentifier(subjectNodes.tail)
   }
 
   def getSubjectsData(trial: Trial, dataSetId: Int, subjects: List[String]): List[TrialSubject] = {
@@ -112,7 +114,7 @@ class OpenClinicaService {
                                           <bean:identifier>{ trial.name }</bean:identifier>
                                         </v1:studyRef>
                                         <v1:dataSetIdentifier>{ dataSetId}</v1:dataSetIdentifier>
-                                        <v1:label>Subject1</v1:label>
+                                        <v1:label>Patient1</v1:label>
                                       </v1:getStudySubjectRequest>)
     val result = sendMessage("http://localhost:8080/OpenClinica-ws/ws/studySubject/v1", request)
     val odm = XML.loadString((result.get \\ "odm").text)

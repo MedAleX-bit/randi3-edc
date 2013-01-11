@@ -4,14 +4,16 @@ package org.randi3.openclinica.cdisc
 import org.randi3.model.SubjectProperty
 import org.randi3.model.Trial
 import org.randi3.model.TrialSubject
-import org.randi3.openclinica.model.TrialOC
 import scala.xml.NodeSeq
-import org.randi3.openclinica.model.EventOC
 import org.randi3.model.criterion._
-import org.randi3.openclinica.model.ItemOC
-import org.randi3.openclinica.model.ItemGroupOC
-import org.randi3.openclinica.model.FormOC
+import constraint.Constraint
 import scala.annotation.tailrec
+import org.randi3.edc.model.openClinica._
+import scala.Some
+import org.randi3.edc.model.openClinica.ItemOC
+import org.randi3.edc.model.openClinica.FormOC
+import org.randi3.edc.model.openClinica.ItemGroupOC
+import org.randi3.edc.model.openClinica.EventOC
 
 object CDISCUtility {
 
@@ -52,25 +54,25 @@ object CDISCUtility {
     val head: NodeSeq = itemSeq.head
     val oid = (head \ "@ItemOID").text
     val singleItemSeq = ((fullSeq \\ "ItemDef").filter(itemDef => (itemDef \ "@OID").text == oid))
-    val criterion =
+    val criterion: Criterion[Any, Constraint[Any]] =
       if (!(singleItemSeq \\ "CodeListRef").isEmpty) {
-        extractOrdinalCriterion(singleItemSeq, fullSeq)
+        extractOrdinalCriterion(singleItemSeq, fullSeq).asInstanceOf[Criterion[Any, Constraint[Any]]]
       } else if (!(singleItemSeq \\ "MultiSelectListRef").isEmpty) {
         //Do nothing, cant't handle multi selectable elements
         null
       } else {
-        extractSimpleCriterion(singleItemSeq)
+        extractSimpleCriterion(singleItemSeq).asInstanceOf[Criterion[Any, Constraint[Any]]]
       }
     val itemOC = if (criterion == null) Nil else List(new ItemOC(oid, criterion))
     itemOC ::: extractItems(itemSeq.tail, fullSeq)
   }
 
-  private def extractOrdinalCriterion(itemSeq: NodeSeq, fullSeq: NodeSeq): Criterion[Any] = {
+  private def extractOrdinalCriterion(itemSeq: NodeSeq, fullSeq: NodeSeq): Criterion[_ <: Any, Constraint[_ <: Any]] = {
     val name = (itemSeq \ "@Name").text
     val description = (itemSeq \ "@Comment").text
     val codeListOid = ((itemSeq \\ "CodeListRef") \ "@CodeListOID").text
     val codeListRef = (fullSeq \\ "CodeList").filter(codeList => (codeList \ "@OID").text == codeListOid)
-    new OrdinalCriterion(name = name, description = description, values = extractCodeListItems(codeListRef))
+    OrdinalCriterion(name = name, description = description, values = extractCodeListItems(codeListRef), inclusionConstraint = None, strata = Nil).toOption.get
   }
 
   private def extractCodeListItems(codeSeq: NodeSeq): Set[String] = {
@@ -82,14 +84,14 @@ object CDISCUtility {
     extractCodeValue((codeSeq \\ "CodeListItem"), Nil)
   }
 
-  private def extractSimpleCriterion(itemSeq: NodeSeq): Criterion[Any] = {
+  private def extractSimpleCriterion(itemSeq: NodeSeq): Criterion[_ <: Any, Constraint[_ <: Any]] = {
     val itemOid = ((itemSeq \ "ItemDetails") \ "@ItemOID").text
     val description = (itemSeq \ "@Comment").text
     (itemSeq \ "@DataType").text match {
-      case "text" => new FreeTextCriterion(name = itemOid, description = description)
-      case "integer" => new IntegerCriterion(name = itemOid, description = description)
-      case "float" => new DoubleCriterion(name = itemOid, description = description)
-      case "data" | "partialDate" => new DateCriterion(name = itemOid, description = description)
+      case "text" => FreeTextCriterion(name = itemOid, description = description, inclusionConstraint = None, strata = Nil).toOption.get
+      case "integer" => IntegerCriterion(name = itemOid, description = description, inclusionConstraint = None, strata = Nil).toOption.get
+      case "float" => DoubleCriterion(name = itemOid, description = description, inclusionConstraint = None, strata = Nil).toOption.get
+      case "data" | "partialDate" => DateCriterion(name = itemOid, description = description, inclusionConstraint = None, strata = Nil).toOption.get
       case _ => null
     }
   }
@@ -98,21 +100,21 @@ object CDISCUtility {
     extractSubjects(odm \\ "SubjectData", trial.criterions)
   }
 
-  private def extractSubjects(subjectNodes: NodeSeq, criterions: List[Criterion[Any]]): List[TrialSubject] = {
+  private def extractSubjects(subjectNodes: NodeSeq, criterions: List[Criterion[_ <: Any, Constraint[_ <: Any]]]): List[TrialSubject] = {
     if (subjectNodes.isEmpty) return List()
     val subjectProperties =  extractSubjectProperties(subjectNodes.head \\ "ItemData", criterions)
     val identifier = (subjectNodes.head \ "@SubjectKey").text
-    val subject = new TrialSubject(identifier = identifier, properties = subjectProperties)
+    val subject = TrialSubject(identifier = identifier, investigatorUserName = "", properties = subjectProperties, trialSite = null).toOption.get
     subject :: extractSubjects(subjectNodes.tail, criterions)
   }
 
-  private def extractSubjectProperties(itemNodes: NodeSeq, criterions: List[Criterion[Any]]): List[SubjectProperty[Any]] =  { 
+  private def extractSubjectProperties(itemNodes: NodeSeq, criterions: List[Criterion[_ <: Any, Constraint[_ <: Any]]]): List[SubjectProperty[Any]] =  {
     if (itemNodes.isEmpty) return List()
     val itemOID = (itemNodes.head \ "@ItemOID").text
     val value = (itemNodes.head \ "@Value").text
     //if no criterion with the itemOid exists try next itemNode
-    val criterion = criterions.find(crit => crit.name == itemOID).orElse( return extractSubjectProperties(itemNodes.tail, criterions)).get
-    new SubjectProperty(criterion = criterion, value = value) :: extractSubjectProperties(itemNodes.tail, criterions)
+    val criterion = criterions.find(crit => crit.name == itemOID).orElse( return extractSubjectProperties(itemNodes.tail, criterions)).get.asInstanceOf[Criterion[Any, Constraint[Any]]]
+    SubjectProperty(criterion = criterion, value = value).toOption.get :: extractSubjectProperties(itemNodes.tail, criterions)
   }
 
 }
