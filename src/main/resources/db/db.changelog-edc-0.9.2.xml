@@ -1,5 +1,107 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
-    <include file="db/db.changelog-0.9.0.xml"/>
-    <include file="db/db.changelog-0.9.1.xml"/>
+
+
+    <changeSet author="dschrimpf" id="org.randi3.edc-0.9.2-1">
+        <createTable tableName="OCTrial">
+            <column autoIncrement="true" name="ID" type="INT">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="Identifier" type="VARCHAR(254)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="Oid" type="VARCHAR(254)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="Name" type="VARCHAR(254)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="metaDataVersionOid" type="VARCHAR(254)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="TrialId" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+  <changeSet author="dschrimpf" id="randi2-edc-0.9.2-2">
+        <createTable tableName="OCEvent">
+            <column autoIncrement="true" name="ID" type="INT">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="Oid" type="VARCHAR(254)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="TrialOCId" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet author="dschrimpf" id="randi2-edc-0.9.2-3">
+        <createTable tableName="OCForm">
+            <column autoIncrement="true" name="ID" type="INT">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="Oid" type="VARCHAR(254)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="EventOCId" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet author="dschrimpf" id="randi2-edc-0.9.2-4">
+        <createTable tableName="OCItemGroup">
+            <column autoIncrement="true" name="ID" type="INT">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="Oid" type="VARCHAR(254)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="FormOCId" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet author="dschrimpf" id="randi2-edc-0.9.2-5">
+        <createTable tableName="OCItem">
+            <column autoIncrement="true" name="ID" type="INT">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="Oid" type="VARCHAR(254)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ItemGroupOCId" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CriterionId" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet author="dschrimpf" id="randi2-edc-0.9.2-6">
+        <createTable tableName="OCConnection">
+            <column autoIncrement="true" name="ID" type="INT">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="Location" type="VARCHAR(254)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="Username" type="VARCHAR(254)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="PasswordHash" type="VARCHAR(254)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="TrialOCId" type="VARCHAR(254)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
 </databaseChangeLog>
