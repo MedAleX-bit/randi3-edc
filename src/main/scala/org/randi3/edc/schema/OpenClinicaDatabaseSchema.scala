@@ -1,4 +1,4 @@
-package org.randi3.schema
+package org.randi3.edc.schema
 
 import org.scalaquery.session._
 import org.scalaquery.session.Database.threadLocalSession
@@ -7,23 +7,32 @@ import org.scalaquery.ql.TypeMapper._
 import org.scalaquery.ql.extended.{ ExtendedTable => Table }
 import org.scalaquery.ql.extended._
 import org.scalaquery.ql.basic._
+import org.randi3.schema.DatabaseSchema._
+import org.scalaquery.ql.PrimaryKey
+import org.randi3.schema.DatabaseSchema
 
-object OpenClinicaDatabaseShema {
+class OpenClinicaDatabaseSchema (driver: ExtendedProfile) {
+  import driver.Implicit._
 
-  val TrialOCs = new Table[(Int, String, String, String, String)]("TrialOC") {
+   val schema = new DatabaseSchema(driver)
+
+  object TrialOCs extends Table[(Int, String, String, String, String, Int)]("OCTrial") {
     def id = column[Int]("ID", O PrimaryKey, O AutoInc)
     def identifier = column[String]("Identifier", O NotNull)
     def oid = column[String]("Oid", O NotNull)
     def name = column[String]("Name", O NotNull)
     def metaDataVersionOid = column[String]("metaDataVersionOid", O NotNull)
-    def * = id ~ identifier ~ oid ~ name ~ metaDataVersionOid
-    def noId = identifier ~ oid ~ name ~ metaDataVersionOid
+    def trialId = column[Int]("TrialId")
+    def * = id ~ identifier ~ oid ~ name ~ metaDataVersionOid ~ trialId
+    def noId = identifier ~ oid ~ name ~ metaDataVersionOid ~ trialId
     def uniqueIdentifier = index("uniqueTrialOCIdentifier", identifier, unique = true)
     def uniqueOid = index("uniqueTrialOCOid", oid, unique = true)
     def uniqueName = index("uniqueTrialOCName", name, unique = true)
+    def trial = foreignKey("TrialOC_Trial", trialId, schema.Trials)(_.id)
+
   }
 
-  val EventOCs = new Table[(Int, String, Int)]("EventOC") {
+  object EventOCs extends Table[(Int, String, Int)]("OCEvent") {
     def id = column[Int]("ID", O PrimaryKey, O AutoInc)
     def oid = column[String]("Oid", O NotNull)
     def trialOCId = column[Int]("TrialOCId")
@@ -33,7 +42,7 @@ object OpenClinicaDatabaseShema {
     def trialOC = foreignKey("TrialOCFK_EventOC", trialOCId, TrialOCs)(_.id)
   }
 
-  val FormOCs = new Table[(Int, String, Int)]("FormOC") {
+  object FormOCs extends Table[(Int, String, Int)]("OCForm") {
     def id = column[Int]("ID", O PrimaryKey, O AutoInc)
     def oid = column[String]("Oid", O NotNull)
     def eventOCId = column[Int]("EventOCId")
@@ -43,17 +52,17 @@ object OpenClinicaDatabaseShema {
     def evenOC = foreignKey("EventOCFK_FormOC", eventOCId, EventOCs)(_.id)
   }
 
-  val ItemGroupOCs = new Table[(Int, String, Int)]("ItemGroupOC") {
+  object ItemGroupOCs extends Table[(Int, String, Int)]("OCItemGroup") {
     def id = column[Int]("ID", O PrimaryKey, O AutoInc)
     def oid = column[String]("Oid", O NotNull)
-    def formOCId = column[Int]("ItemGroupOCId")
+    def formOCId = column[Int]("FormOCId")
     def * = id ~ oid ~ formOCId
     def noId = oid ~ formOCId
     def uniqueOid = index("uniqueItemGroupOCOid", oid, unique = true)
     def formOC = foreignKey("FormOCFK_ItemGroupOC", formOCId, FormOCs)(_.id)
   }
   
-  val ItemOCs = new Table[(Int, String, Int, Int)]("ItemGroupOC") {
+  object ItemOCs extends Table[(Int, String, Int, Int)]("OCItem") {
     def id = column[Int]("ID", O PrimaryKey, O AutoInc)
     def oid = column[String]("Oid", O NotNull)
     def itemGroupOCId = column[Int]("ItemGroupOCId")
@@ -63,12 +72,17 @@ object OpenClinicaDatabaseShema {
     def uniqueOid = index("uniqueItemGroupOCOid", oid, unique = true)
     def itemGroupOC = foreignKey("ItemGroupOCFK_ItemOC", itemGroupOCId, ItemGroupOCs)(_.id)
   }
-  
-  def createDatabaseTables(db: Database, driver: ExtendedProfile) = {
-    import driver.Implicit._
-    db withSession {
-      (TrialOCs.ddl ++ EventOCs.ddl ++ FormOCs.ddl ++ ItemGroupOCs.ddl ++ ItemOCs.ddl).create
-    }
+
+  object Connections extends Table[(Int, Int, String, String, String)]("OCConnection") {
+    def id = column[Int]("ID", O PrimaryKey, O AutoInc)
+    def trialOCId = column[Int]("TrialOCId")
+    def location = column[String]("Location", O NotNull)
+    def username = column[String]("Username", O NotNull)
+    def passwordHash = column[String]("PasswordHash", O NotNull)
+    def * = id ~ trialOCId ~ location ~ username ~ passwordHash
+    def noId = trialOCId ~ location ~ username ~ passwordHash
+    def trialOC = foreignKey("TrialOCFK_Connection", trialOCId, TrialOCs)(_.id)
+
   }
 
 }

@@ -1,9 +1,7 @@
 package org.randi3.openclinica.cdisc
 
 
-import org.randi3.model.SubjectProperty
-import org.randi3.model.Trial
-import org.randi3.model.TrialSubject
+import org.randi3.model.{TrialSite, SubjectProperty, Trial, TrialSubject}
 import scala.xml.NodeSeq
 import org.randi3.model.criterion._
 import constraint.Constraint
@@ -15,13 +13,14 @@ import org.randi3.edc.model.openClinica.FormOC
 import org.randi3.edc.model.openClinica.ItemGroupOC
 import org.randi3.edc.model.openClinica.EventOC
 
-object CDISCUtility {
+object CDISCToModelConverter {
 
-  def getFullTrialFromODM(odm: NodeSeq): Option[TrialOC] = {
+  def getFullTrialFromODM(odm: NodeSeq, connection: ConnectionOC): Option[TrialOC] = {
     val oid = ((odm \\ "Study") \ "@OID").text
     val name = (odm \\ "StudyName").text
     val identifier = (odm \\ "ProtocolName").text
-    Some(new TrialOC(oid, name, identifier, metaDataVersionOID = ((odm \\ "MetaDataVersion")(0) \ "@OID").text, events = extractEvents((odm \\ "StudyEventDef"), odm)))
+    val description = (odm \\ "StudyDescription").text
+    Some(new TrialOC(oid = oid, name = name, identifier = identifier, description = description, metaDataVersionOID = ((odm \\ "MetaDataVersion")(0) \ "@OID").text, events = extractEvents((odm \\ "StudyEventDef"), odm), trial = None, connection = connection))
   }
 
   private def extractEvents(eventSeq: NodeSeq, fullSeq: NodeSeq): List[EventOC] = {
@@ -88,23 +87,27 @@ object CDISCUtility {
     val itemOid = ((itemSeq \ "ItemDetails") \ "@ItemOID").text
     val description = (itemSeq \ "@Comment").text
     (itemSeq \ "@DataType").text match {
-      case "text" => FreeTextCriterion(name = itemOid, description = description, inclusionConstraint = None, strata = Nil).toOption.get
+      // text is not necessary for the randomization
+     // case "text" => FreeTextCriterion(name = itemOid, description = description, inclusionConstraint = None, strata = Nil).toOption.get
       case "integer" => IntegerCriterion(name = itemOid, description = description, inclusionConstraint = None, strata = Nil).toOption.get
       case "float" => DoubleCriterion(name = itemOid, description = description, inclusionConstraint = None, strata = Nil).toOption.get
-      case "data" | "partialDate" => DateCriterion(name = itemOid, description = description, inclusionConstraint = None, strata = Nil).toOption.get
+      //Parial date does not map to date criterion
+      case "data" => DateCriterion(name = itemOid, description = description, inclusionConstraint = None, strata = Nil).toOption.get
       case _ => null
     }
   }
 
-  def getAllSubjectsFromODM(odm: NodeSeq, trial: Trial): List[TrialSubject] = {
-    extractSubjects(odm \\ "SubjectData", trial.criterions)
+  def getAllSubjectsFromODM(odm: NodeSeq, trialOC: TrialOC): List[TrialSubject] = {
+    extractSubjects(odm \\ "SubjectData", trialOC.getAllCriteria())
   }
 
   private def extractSubjects(subjectNodes: NodeSeq, criterions: List[Criterion[_ <: Any, Constraint[_ <: Any]]]): List[TrialSubject] = {
     if (subjectNodes.isEmpty) return List()
     val subjectProperties =  extractSubjectProperties(subjectNodes.head \\ "ItemData", criterions)
     val identifier = (subjectNodes.head \ "@SubjectKey").text
-    val subject = TrialSubject(identifier = identifier, investigatorUserName = "", properties = subjectProperties, trialSite = null).toOption.get
+    //TODO
+    val dummyTrialSite = TrialSite(Int.MinValue, 0, "validName", "validCountry", "validStreet", "validPostCode", "validCity", "password", true).toOption.get
+    val subject = TrialSubject(identifier = identifier, investigatorUserName = "dummyInvestigator", properties = subjectProperties, trialSite = dummyTrialSite).toOption.get
     subject :: extractSubjects(subjectNodes.tail, criterions)
   }
 

@@ -1,16 +1,28 @@
 package org.randi3.edc.service
-import org.randi3.model.{TrialSite, TrialSubject, Trial}
-import org.randi3.model.criterion._
-import org.apache.commons.httpclient.HttpClient
-import scala.xml._
-import org.randi3.edc.model.openClinica._
-import scala.annotation.tailrec
-import org.randi3.openclinica.cdisc.CDISCUtility._
 
-import org.xml.sax._
-import parsing._
+import org.randi3.model.{TrialSite, TrialSubject}
+
+import scala.xml._
+import org.randi3.edc.model.openClinica.ConnectionOC
+
+import org.randi3.openclinica.cdisc.CDISCToModelConverter._
+
+
 import org.ccil.cowan.tagsoup.jaxp.SAXFactoryImpl
 import org.randi3.edc.model.openClinica.TrialOC
+import scalaz.Validation
+import org.randi3.edc.dao.OpenClinicaDaoComponent
+import org.randi3.dao.UserDaoComponent
+import org.randi3.utility.SecurityComponent
+
+
+trait OpenClinicaServiceComponent {
+  this: OpenClinicaDaoComponent with
+    UserDaoComponent with
+    SecurityComponent =>
+
+
+  val openClinicaService: OpenClinicaService
 
 class OpenClinicaService {
 
@@ -25,58 +37,58 @@ class OpenClinicaService {
     </soapenv:Header>
   }
 
-  private def studyMessage(bodyContent: Elem): Elem = {
-    message(bodyContent, "http://openclinica.org/ws/study/v1")
+  private def studyMessage(bodyContent: Elem, username: String, passwordHash: String): Elem = {
+    message(bodyContent, "http://openclinica.org/ws/study/v1", username, passwordHash)
   }
 
-  private def studySubjectMessage(bodyContent: Elem): Elem = {
-    message(bodyContent, "http://openclinica.org/ws/studySubject/v1")
+  private def studySubjectMessage(bodyContent: Elem, username: String, passwordHash: String): Elem = {
+    message(bodyContent, "http://openclinica.org/ws/studySubject/v1", username, passwordHash)
   }
 
-  private def message(bodyContent: Elem, beanSchema: String): Elem = {
+  private def message(bodyContent: Elem, beanSchema: String, username: String, passwordHash: String): Elem = {
     <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:v1={ beanSchema } xmlns:bean="http://openclinica.org/ws/beans">
-      { header("root", "5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8") }
+      { header(username, passwordHash ) }
       <soapenv:Body>
         { bodyContent }
       </soapenv:Body>
     </soapenv:Envelope>
   }
 
-  def getTrials(): List[TrialOC] = {
-    val request = studyMessage(<v1:listAllRequest/>)
-    val result = sendMessage("http://localhost:8080/OpenClinica-ws/ws/study/v1", request)
+  def getTrials(connection: ConnectionOC): List[TrialOC] = {
+    val request = studyMessage(<v1:listAllRequest/>, connection.username, connection.passwordHash)
+    val result = sendMessage(connection.location + "/ws/study/v1", request)
     //TODO Error handling
-    createTrialOCsWithoutEventsAndMetadata((result.get \\ "study"))
+    createTrialOCsWithoutEventsAndMetadata(connection, (result.get \\ "study"))
   }
 
-  private def createTrialOCsWithoutEventsAndMetadata(studySeqs: NodeSeq): List[TrialOC] = {
+  private def createTrialOCsWithoutEventsAndMetadata(connection: ConnectionOC, studySeqs: NodeSeq): List[TrialOC] = {
     if (studySeqs.isEmpty) return List()
-    new TrialOC(identifier = (studySeqs.head \ "identifier").text, oid = (studySeqs.head \ "oid").text, name = (studySeqs.head \ "name").text) :: createTrialOCsWithoutEventsAndMetadata(studySeqs.tail)
+    new TrialOC(identifier = (studySeqs.head \ "identifier").text, oid = (studySeqs.head \ "oid").text, name = (studySeqs.head \ "name").text, description = "",trial = None, connection = connection) :: createTrialOCsWithoutEventsAndMetadata(connection, studySeqs.tail)
   }
 
-  def getFullTrialOC(trialIdentifier: String): Option[TrialOC] = {
+  def getFullTrialOC(trialOC: TrialOC): Option[TrialOC] = {
     val request = studyMessage(<v1:getMetadataRequest>
                                  <v1:studyMetadata>
-                                   <bean:identifier>{ trialIdentifier }</bean:identifier>
+                                   <bean:identifier>{ trialOC.identifier }</bean:identifier>
                                  </v1:studyMetadata>
-                               </v1:getMetadataRequest>)
-    val result = sendMessage("http://localhost:8080/OpenClinica-ws/ws/study/v1", request)
+                               </v1:getMetadataRequest>, trialOC.connection.username, trialOC.connection.passwordHash)
+    val result = sendMessage(trialOC.connection.location + "/ws/study/v1", request)
     //TODO Error handling
     val odm = XML.loadString((result.get \\ "odm").text)
 
-    getFullTrialFromODM(odm)
+    getFullTrialFromODM(odm, trialOC.connection)
   }
 
-  def getSubjectList(trialIdentifier: String): List[TrialSubject] = {
+  def getSubjectList(trialOC: TrialOC): List[TrialSubject] = {
     val request = studySubjectMessage(<v1:listAllByStudyRequest>
                                         <bean:studyRef>
-                                          <bean:identifier>{ trialIdentifier }</bean:identifier>
+                                          <bean:identifier>{ trialOC.oid }</bean:identifier>
                                         </bean:studyRef>
-                                      </v1:listAllByStudyRequest>)
+                                      </v1:listAllByStudyRequest>, trialOC.connection.username, trialOC.connection.passwordHash)
 
     //TODO fix the problem with the invalid xml response
 
-    val url = new java.net.URL("http://localhost:8080/OpenClinica-ws/ws/studySubject/v1")
+    val url = new java.net.URL(trialOC.connection.location + "/ws/studySubject/v1")
     val outs = request.toString.getBytes
     val conn = url.openConnection.asInstanceOf[java.net.HttpURLConnection]
     conn.setRequestMethod("POST")
@@ -107,19 +119,19 @@ class OpenClinicaService {
     TrialSubject(identifier = (subjectNodes.head \\ "label").text, properties = Nil, investigatorUserName = "dummy user", trialSite = dummySite).toOption.get :: extractSubjectsOnlyWithIdentifier(subjectNodes.tail)
   }
 
-  def getSubjectsData(trial: Trial, dataSetId: Int, subjects: List[String]): List[TrialSubject] = {
+  def getSubjectsData(trialOC: TrialOC, dataSetId: Int, subjects: List[String]): List[TrialSubject] = {
     //TODO subjects
     val request = studySubjectMessage(<v1:getStudySubjectRequest>
                                         <v1:studyRef>
-                                          <bean:identifier>{ trial.name }</bean:identifier>
+                                          <bean:identifier>{ trialOC.oid }</bean:identifier>
                                         </v1:studyRef>
                                         <v1:dataSetIdentifier>{ dataSetId}</v1:dataSetIdentifier>
                                         <v1:label>Patient1</v1:label>
-                                      </v1:getStudySubjectRequest>)
-    val result = sendMessage("http://localhost:8080/OpenClinica-ws/ws/studySubject/v1", request)
+                                      </v1:getStudySubjectRequest>, trialOC.connection.username,  trialOC.connection.passwordHash)
+    val result = sendMessage(trialOC.connection.location + "/ws/studySubject/v1", request)
     val odm = XML.loadString((result.get \\ "odm").text)
 
-    getAllSubjectsFromODM(odm, trial)
+    getAllSubjectsFromODM(odm, trialOC)
   }
 
   private def sendMessage(host: String, req: Elem): Option[Elem] = {
@@ -136,10 +148,25 @@ class OpenClinicaService {
       Some(XML.load(conn.getInputStream()))
     } catch {
       case e: Exception =>
-        error("post: " + e)
+        error("post: " + e.getMessage)
         error("post:" + scala.io.Source.fromInputStream(conn.getErrorStream).mkString)
         None
     }
   }
 
+  def getLocalTrials(): List[TrialOC] = {
+    Nil
+  }
+
+  def createNewLocalTrial(trialOC: TrialOC): Validation[String, TrialOC] = {
+    //TODO security
+    openClinicaDao.create(trialOC)
+  }
+
+  def getLocalTrial(id: Int): Validation[String, TrialOC] = {
+    //TODO security
+    openClinicaDao.get(id)
+  }
+
+}
 }
