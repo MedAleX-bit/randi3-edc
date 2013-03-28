@@ -1,6 +1,6 @@
 package org.randi3.edc.dao
 
-import org.randi3.utility.{UtilityDBComponent, Logging}
+import org.randi3.utility.{SecurityComponent, UtilityDBComponent, Logging}
 import scalaz.{Success, Failure, Validation}
 import org.randi3.edc.model.openClinica._
 import org.randi3.dao.{TrialDaoComponent, DaoComponent}
@@ -19,6 +19,7 @@ import org.randi3.model.criterion.constraint.Constraint
 import collection.mutable.ListBuffer
 import org.randi3.edc.schema.OpenClinicaDatabaseSchema
 import org.randi3.model.Trial
+import org.randi3.service.TrialServiceComponent
 
 
 trait OpenClinicaDaoComponent {
@@ -26,7 +27,9 @@ trait OpenClinicaDaoComponent {
   this: DaoComponent with
     Logging with
     UtilityDBComponent with
-    TrialDaoComponent =>
+    TrialDaoComponent with
+  TrialServiceComponent with
+  SecurityComponent =>
 
   val openClinicaSchema: OpenClinicaDatabaseSchema
   val openClinicaDao: OpenClinicaDao
@@ -37,6 +40,7 @@ trait OpenClinicaDaoComponent {
     import schema._
     import openClinicaSchema._
     import utilityDB._
+    import securityUtility._
 
 
     private val queryTrialOCFromOid = for {
@@ -70,7 +74,7 @@ trait OpenClinicaDaoComponent {
 
     def create(trialOC: TrialOC): Validation[String, TrialOC] = {
       onDB {
-          trialDao.create(trialOC.trial.getOrElse(return Failure("Trial must be set"))).either match {
+          trialService.create(trialOC.trial.getOrElse(return Failure("Trial must be set")), currentUser.get).either match {
             case Left(failure) => Failure(failure)
             case Right(trialId) => {
               threadLocalSession withTransaction {
