@@ -5,10 +5,10 @@
 	<parent>
 		<artifactId>randi3</artifactId>
 		<groupId>org.randi3</groupId>
-		<version>0.9.2</version>
+		<version>0.9.3-SNAPSHOT</version>
 	</parent>
 	<artifactId>randi3-edc</artifactId>
-	<version>0.9.2</version>
+	<version>0.9.3-SNAPSHOT</version>
     <name>RANDI2 - EDC module</name>
     <description>EDC module for RANDI2 (at the moment only for OpenClinica)</description>
     <url>http://randi2.org</url>
@@ -24,12 +24,12 @@
 		<dependency>
 			<groupId>org.randi3</groupId>
 			<artifactId>randi3-core</artifactId>
-			<version>0.9.2</version>
+			<version>0.9.3-SNAPSHOT</version>
 		</dependency>
         <dependency>
             <groupId>org.randi3</groupId>
             <artifactId>randi3-core</artifactId>
-            <version>0.9.2</version>
+            <version>0.9.3-SNAPSHOT</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
