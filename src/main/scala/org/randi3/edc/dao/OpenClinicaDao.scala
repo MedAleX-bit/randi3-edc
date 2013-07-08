@@ -4,8 +4,7 @@ import org.randi3.utility.{SecurityComponent, UtilityDBComponent, Logging}
 import scalaz.{Success, Failure, Validation}
 import org.randi3.edc.model.openClinica._
 import org.randi3.dao.{TrialDaoComponent, DaoComponent}
-import org.scalaquery.session.Database._
-import org.scalaquery.ql.{Query, Parameters}
+import scala.slick.session.Database._
 import scala.Left
 import scalaz.Failure
 import scala.Right
@@ -20,6 +19,7 @@ import collection.mutable.ListBuffer
 import org.randi3.edc.schema.OpenClinicaDatabaseSchema
 import org.randi3.model.Trial
 import org.randi3.service.TrialServiceComponent
+import scala.slick.lifted.{Query, Parameters}
 
 
 trait OpenClinicaDaoComponent {
@@ -74,14 +74,14 @@ trait OpenClinicaDaoComponent {
 
     def create(trialOC: TrialOC): Validation[String, TrialOC] = {
       onDB {
-          trialService.create(trialOC.trial.getOrElse(return Failure("Trial must be set")), currentUser.get).either match {
+          trialService.create(trialOC.trial.getOrElse(return Failure("Trial must be set")), currentUser.get).toEither match {
             case Left(failure) => Failure(failure)
             case Right(trialId) => {
               threadLocalSession withTransaction {
                 TrialOCs.noId insert(trialOC.identifier, trialOC.oid, trialOC.name, trialOC.metaDataVersionOID, trialId)
               }
               val trial = trialDao.get(trialId).toOption.get.get //TODO
-              getId(trialOC.oid).either match {
+              getId(trialOC.oid).toEither match {
                 case Left(failure) => Failure(failure)
                 case Right(trialOCid) => {
                   createEventOCs(trialOCid, trialOC.events, trial)
@@ -123,7 +123,7 @@ trait OpenClinicaDaoComponent {
         threadLocalSession withTransaction {
           EventOCs.noId insert(event.oid, trialOCid)
         }
-        getIdEventOc(trialOCid, event.oid).either match {
+        getIdEventOc(trialOCid, event.oid).toEither match {
           case Left(failure) => println("event" + failure)//TODO
           case Right(eventId) => {
             createFormOCs(eventId, event.forms, trial)
@@ -137,7 +137,7 @@ trait OpenClinicaDaoComponent {
         threadLocalSession withTransaction {
           FormOCs.noId insert(form.oid, eventId)
         }
-        getIdFormOc(eventId, form.oid).either match {
+        getIdFormOc(eventId, form.oid).toEither match {
           case Left(failure) => println(failure) //TODO
           case Right(eventId) => {
             createItemGroupOCs(eventId, form.items, trial)
@@ -151,7 +151,7 @@ trait OpenClinicaDaoComponent {
         threadLocalSession withTransaction {
           ItemGroupOCs.noId insert(itemGroup.oid, formId)
         }
-        getIdItemGroupOc(formId, itemGroup.oid).either match {
+        getIdItemGroupOc(formId, itemGroup.oid).toEither match {
           case Left(failure) => println(failure)//TODO
           case Right(itemGroupId) => {
             createItemOCs(itemGroupId, itemGroup.items, trial)
@@ -181,14 +181,14 @@ trait OpenClinicaDaoComponent {
         if (result.size == 1) {
           val trialOCRow = result.head
 
-          trialDao.get(trialOCRow._6).either match {
+          trialDao.get(trialOCRow._6).toEither match {
             case Left(failure) => Failure(failure)
             case Right(None) => Failure("Trial not found")
             case Right(Some(trial)) => {
-              getConnection(id).either match {
+              getConnection(id).toEither match {
                 case Left(failure) => Failure("Connection not found: " + failure)
                 case Right(connection) => {
-                  getEventOCs(id, trial.criterions.asInstanceOf[List[Criterion[Any, Constraint[Any]]]]).either match {
+                  getEventOCs(id, trial.criterions.asInstanceOf[List[Criterion[Any, Constraint[Any]]]]).toEither match {
                     case Left(failure) => Failure("Failure with EventOC: " + failure)
                     case Right(events) => {
                       Success(TrialOC(trialOCRow._1, 0, trialOCRow._2, trialOCRow._3, trialOCRow._4, trial.description, trialOCRow._5, events, Some(trial), connection))

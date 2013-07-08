@@ -1,18 +1,14 @@
 package org.randi3.edc.schema
 
-import org.scalaquery.session._
-import org.scalaquery.session.Database.threadLocalSession
-import org.scalaquery.ql._
-import org.scalaquery.ql.TypeMapper._
-import org.scalaquery.ql.extended.{ ExtendedTable => Table }
-import org.scalaquery.ql.extended._
-import org.scalaquery.ql.basic._
-import org.randi3.schema.DatabaseSchema._
-import org.scalaquery.ql.PrimaryKey
-import org.randi3.schema.DatabaseSchema
 
-class OpenClinicaDatabaseSchema (driver: ExtendedProfile) {
+import org.randi3.schema.DatabaseSchema._
+
+import org.randi3.schema.DatabaseSchema
+import scala.slick.driver.ExtendedProfile
+
+class OpenClinicaDatabaseSchema (val driver: ExtendedProfile) {
   import driver.Implicit._
+  import driver.simple._
 
    val schema = new DatabaseSchema(driver)
 

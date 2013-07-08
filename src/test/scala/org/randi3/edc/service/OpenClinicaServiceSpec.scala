@@ -3,7 +3,7 @@ package org.randi3.edc.service
 import java.util.Date
 import org.junit.runner.RunWith
 import org.randi3.model.{TrialStatus, TrialSubjectIdentificationCreationType, Trial}
-import org.scalatest.matchers.ShouldMatchers
+
 import org.scalatest.matchers.MustMatchers
 import org.scalatest.FunSpec
 
@@ -13,7 +13,7 @@ import org.randi3.edc.model.openClinica.ConnectionOC
 import org.randi3.edc.utility.TestingEnvironmentEDC
 
 @RunWith(classOf[JUnitRunner])
-class OpenClinicaServiceSpec extends FunSpec with MustMatchers with ShouldMatchers {
+class OpenClinicaServiceSpec extends FunSpec with MustMatchers {
 
   val connection = new ConnectionOC("http://localhost:8080/OpenClinica-ws", "root", "5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8")
   val service = TestingEnvironmentEDC.openClinicaService
