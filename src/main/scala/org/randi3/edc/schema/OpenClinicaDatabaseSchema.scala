@@ -12,14 +12,15 @@ class OpenClinicaDatabaseSchema (val driver: ExtendedProfile) {
 
    val schema = new DatabaseSchema(driver)
 
-  object TrialOCs extends Table[(Int, String, String, String, String, Int)]("OCTrial") {
-    def id = column[Int]("ID", O PrimaryKey, O AutoInc)
+  object TrialOCs extends Table[(Int, String, String, String, String, Int, Int)]("OCTrial") {
+    def id = column[Int]("id", O PrimaryKey, O AutoInc)
     def identifier = column[String]("Identifier", O NotNull)
     def oid = column[String]("Oid", O NotNull)
     def name = column[String]("Name", O NotNull)
     def metaDataVersionOid = column[String]("metaDataVersionOid", O NotNull)
     def trialId = column[Int]("TrialId")
-    def * = id ~ identifier ~ oid ~ name ~ metaDataVersionOid ~ trialId
+    def treatmentItemOC = column[Int]("TreatmentItemOC")
+    def * = id ~ identifier ~ oid ~ name ~ metaDataVersionOid ~ trialId ~ treatmentItemOC
     def noId = identifier ~ oid ~ name ~ metaDataVersionOid ~ trialId
     def uniqueIdentifier = index("uniqueTrialOCIdentifier", identifier, unique = true)
     def uniqueOid = index("uniqueTrialOCOid", oid, unique = true)
@@ -27,9 +28,19 @@ class OpenClinicaDatabaseSchema (val driver: ExtendedProfile) {
     def trial = foreignKey("TrialOC_Trial", trialId, schema.Trials)(_.id)
 
   }
+  
+  
+  object TrialSiteMapping extends Table[(Int, Int, String, String)]("OCTrialSiteMapping") {
+    def id = column[Int]("id", O PrimaryKey, O AutoInc)
+    def trialId = column[Int]("TrialOCid")
+    def key = column[String]("KeyValue")
+    def value = column[String]("Value")
+    def * = id ~ trialId ~ key ~ value
+    def noId =  trialId ~ key ~ value
+  }
 
   object EventOCs extends Table[(Int, String, Int)]("OCEvent") {
-    def id = column[Int]("ID", O PrimaryKey, O AutoInc)
+    def id = column[Int]("id", O PrimaryKey, O AutoInc)
     def oid = column[String]("Oid", O NotNull)
     def trialOCId = column[Int]("TrialOCId")
     def * = id ~ oid ~ trialOCId
@@ -39,7 +50,7 @@ class OpenClinicaDatabaseSchema (val driver: ExtendedProfile) {
   }
 
   object FormOCs extends Table[(Int, String, Int)]("OCForm") {
-    def id = column[Int]("ID", O PrimaryKey, O AutoInc)
+    def id = column[Int]("id", O PrimaryKey, O AutoInc)
     def oid = column[String]("Oid", O NotNull)
     def eventOCId = column[Int]("EventOCId")
     def * = id ~ oid ~ eventOCId
@@ -49,7 +60,7 @@ class OpenClinicaDatabaseSchema (val driver: ExtendedProfile) {
   }
 
   object ItemGroupOCs extends Table[(Int, String, Int)]("OCItemGroup") {
-    def id = column[Int]("ID", O PrimaryKey, O AutoInc)
+    def id = column[Int]("id", O PrimaryKey, O AutoInc)
     def oid = column[String]("Oid", O NotNull)
     def formOCId = column[Int]("FormOCId")
     def * = id ~ oid ~ formOCId
@@ -57,9 +68,9 @@ class OpenClinicaDatabaseSchema (val driver: ExtendedProfile) {
     def uniqueOid = index("uniqueItemGroupOCOid", oid, unique = true)
     def formOC = foreignKey("FormOCFK_ItemGroupOC", formOCId, FormOCs)(_.id)
   }
-  
+
   object ItemOCs extends Table[(Int, String, Int, Int)]("OCItem") {
-    def id = column[Int]("ID", O PrimaryKey, O AutoInc)
+    def id = column[Int]("id", O PrimaryKey, O AutoInc)
     def oid = column[String]("Oid", O NotNull)
     def itemGroupOCId = column[Int]("ItemGroupOCId")
     def criterionId = column[Int]("CriterionId")
@@ -69,16 +80,25 @@ class OpenClinicaDatabaseSchema (val driver: ExtendedProfile) {
     def itemGroupOC = foreignKey("ItemGroupOCFK_ItemOC", itemGroupOCId, ItemGroupOCs)(_.id)
   }
 
-  object Connections extends Table[(Int, Int, String, String, String)]("OCConnection") {
-    def id = column[Int]("ID", O PrimaryKey, O AutoInc)
+  object OrdinalValueMapping extends Table[(Int, Int, String, String)]("OCOrdinalValueMapping") {
+    def id = column[Int]("id", O PrimaryKey, O AutoInc)
+    def itemOCId = column[Int]("ITtemOCId")
+    def key = column[String]("KeyValue")
+    def value = column[String]("Value")
+    def * = id ~ itemOCId ~ key ~ value
+    def noId =  itemOCId ~ key ~ value
+  }
+
+  object Connections extends Table[(Int, Int, String, String, String, Int)]("OCConnection") {
+    def id = column[Int]("id", O PrimaryKey, O AutoInc)
     def trialOCId = column[Int]("TrialOCId")
     def location = column[String]("Location", O NotNull)
     def username = column[String]("Username", O NotNull)
     def passwordHash = column[String]("PasswordHash", O NotNull)
-    def * = id ~ trialOCId ~ location ~ username ~ passwordHash
-    def noId = trialOCId ~ location ~ username ~ passwordHash
+    def dataSetId = column[Int]("DataSetId")
+    def * = id ~ trialOCId ~ location ~ username ~ passwordHash ~ dataSetId
+    def noId = trialOCId ~ location ~ username ~ passwordHash ~ dataSetId
     def trialOC = foreignKey("TrialOCFK_Connection", trialOCId, TrialOCs)(_.id)
-
   }
 
 }

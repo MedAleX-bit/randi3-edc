@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
+
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-1">
+		<createTable tableName="OCTrialSiteMapping">
+			<column autoIncrement="true" name="ID" type="INT">
+				<constraints nullable="false" primaryKey="true" />
+			</column>
+			<column name="TrialOCid" type="INT">
+				<constraints nullable="false" />
+			</column>
+			<column name="KeyValue" type="VARCHAR(254)">
+				<constraints nullable="false" />
+			</column>
+			<column name="Value" type="VARCHAR(254)">
+				<constraints nullable="false" />
+			</column>
+		</createTable>
+	</changeSet>
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-2_mysql">
+		<preConditions onFail="MARK_RAN">
+			<dbms type="mysql" />
+		</preConditions>
+		<sql>
+			Alter table OCTrial change ID id int(11);
+			Alter table OCTrial modify column id int(11) auto_increment ;
+		</sql>
+	</changeSet>
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-2_psql">
+		<preConditions onFail="MARK_RAN">
+			<columnExists columnName="id" tableName="Audit" />
+			<dbms type="postgresql" />
+		</preConditions>
+		<renameColumn tableName="OCTrial" oldColumnName="ID"
+			newColumnName="id" columnDataType="INT" />
+	</changeSet>
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-3_mysql">
+		<preConditions onFail="MARK_RAN">
+			<dbms type="mysql" />
+		</preConditions>
+		<sql>
+			Alter table OCEvent change ID id int(11);
+			Alter table OCEvent modify column id int(11) auto_increment ;
+		</sql>
+	</changeSet>
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-3_psql">
+		<preConditions onFail="MARK_RAN">
+			<columnExists columnName="id" tableName="Audit" />
+			<dbms type="postgresql" />
+		</preConditions>
+		<renameColumn tableName="OCEvent" oldColumnName="ID"
+			newColumnName="id" columnDataType="INT" />
+	</changeSet>
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-4_mysql">
+		<preConditions onFail="MARK_RAN">
+			<dbms type="mysql" />
+		</preConditions>
+		<sql>
+			Alter table OCForm change ID id int(11);
+			Alter table OCForm modify column id int(11) auto_increment ;
+		</sql>
+	</changeSet>
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-4_psql">
+		<preConditions onFail="MARK_RAN">
+			<columnExists columnName="id" tableName="Audit" />
+			<dbms type="postgresql" />
+		</preConditions>
+		<renameColumn tableName="OCForm" oldColumnName="ID"
+			newColumnName="id" columnDataType="INT" />
+	</changeSet>
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-5_mysql">
+		<preConditions onFail="MARK_RAN">
+			<dbms type="mysql" />
+		</preConditions>
+		<sql>
+			Alter table OCItemGroup change ID id int(11);
+			Alter table OCItemGroup modify column id int(11) auto_increment ;
+		</sql>
+	</changeSet>
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-5_psql">
+		<preConditions onFail="MARK_RAN">
+			<columnExists columnName="id" tableName="Audit" />
+			<dbms type="postgresql" />
+		</preConditions>
+		<renameColumn tableName="OCItemGroup" oldColumnName="ID"
+			newColumnName="id" columnDataType="INT" />
+	</changeSet>
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-6_mysql">
+		<preConditions onFail="MARK_RAN">
+			<dbms type="mysql" />
+		</preConditions>
+		<sql>
+			Alter table OCItem change ID id int(11);
+			Alter table OCItem modify column id int(11) auto_increment ;
+		</sql>
+	</changeSet>
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-6_psql">
+		<preConditions onFail="MARK_RAN">
+			<columnExists columnName="id" tableName="Audit" />
+			<dbms type="postgresql" />
+		</preConditions>
+		<renameColumn tableName="OCItem" oldColumnName="ID"
+			newColumnName="id" columnDataType="INT" />
+	</changeSet>
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-7_mysql">
+		<preConditions onFail="MARK_RAN">
+			<dbms type="mysql" />
+		</preConditions>
+		<sql>
+			Alter table OCConnection change ID id int(11);
+			Alter table OCConnection modify column id int(11) auto_increment ;
+		</sql>
+	</changeSet>
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-7_psql">
+		<preConditions onFail="MARK_RAN">
+			<columnExists columnName="id" tableName="Audit" />
+			<dbms type="postgresql" />
+		</preConditions>
+		<renameColumn tableName="OCConnection" oldColumnName="ID"
+			newColumnName="id" columnDataType="INT" />
+	</changeSet>
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-8_mysql">
+		<preConditions onFail="MARK_RAN">
+			<dbms type="mysql" />
+		</preConditions>
+		<sql>
+			Alter table OCOrdinalValueMapping change ID id int(11);
+			Alter table OCOrdinalValueMapping modify column id int(11) auto_increment ;
+		</sql>
+	</changeSet>
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-8_psql">
+		<preConditions onFail="MARK_RAN">
+			<columnExists columnName="id" tableName="Audit" />
+			<dbms type="postgresql" />
+		</preConditions>
+		<renameColumn tableName="OCOrdinalValueMapping" oldColumnName="ID"
+			newColumnName="id" columnDataType="INT" />
+	</changeSet>
+	
+		<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-9_mysql">
+		<preConditions onFail="MARK_RAN">
+			<dbms type="mysql" />
+		</preConditions>
+		<sql>
+			Alter table OCTrialSiteMapping change ID id int(11);
+			Alter table OCTrialSiteMapping modify column id int(11) auto_increment ;
+		</sql>
+	</changeSet>
+
+	<changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-9_psql">
+		<preConditions onFail="MARK_RAN">
+			<columnExists columnName="id" tableName="Audit" />
+			<dbms type="postgresql" />
+		</preConditions>
+		<renameColumn tableName="OCTrialSiteMapping" oldColumnName="ID"
+			newColumnName="id" columnDataType="INT" />
+	</changeSet>
+
+</databaseChangeLog>

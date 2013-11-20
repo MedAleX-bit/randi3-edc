@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
+
+
+    <changeSet author="dschrimpf" id="org.randi3.edc-0.9.3-1">
+        <addColumn tableName="OCTrial">
+            <column name="TreatmentItemOC" type="TINYINT" defaultValue="0">
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet author="dschrimpf" id="org.randi3.edc-0.9.3-2">
+        <addColumn tableName="OCConnection">
+            <column name="DataSetId" type="TINYINT" defaultValue="0">
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet author="dschrimpf" id="org.randi3.edc-0.9.3-3">
+        <addColumn tableName="OCItem">
+            <column name="TreatmentItemOC" type="TINYINT" defaultValue="0">
+            </column>
+        </addColumn>
+    </changeSet>
+
+
+    <changeSet author="dschrimpf" id="randi2-edc-0.9.3-4">
+        <createTable tableName="OCOrdinalValueMapping">
+            <column autoIncrement="true" name="ID" type="INT">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="ITtemOCId" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="KeyValue" type="VARCHAR(254)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="Value" type="VARCHAR(254)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>
