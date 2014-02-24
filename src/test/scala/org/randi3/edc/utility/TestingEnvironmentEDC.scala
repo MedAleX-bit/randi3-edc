@@ -6,7 +6,7 @@ import org.randi3.utility.TestingEnvironment
 import org.randi3.edc.dao.OpenClinicaDaoComponent
 import org.randi3.edc.model.openClinica._
 import org.randi3.model.criterion.constraint.{Constraint, DoubleConstraint}
-import org.randi3.model.criterion.{Criterion, IntegerCriterion, DoubleCriterion}
+import org.randi3.model.criterion.{Criterion, IntegerCriterion, DoubleCriterion, OrdinalCriterion}
 import org.randi3.edc.model.openClinica.ConnectionOC
 import org.randi3.edc.model.openClinica.ItemOC
 import org.randi3.edc.model.openClinica.TrialOC
@@ -15,6 +15,8 @@ import scala.Some
 import org.randi3.edc.service.OpenClinicaServiceComponent
 
 object TestingEnvironmentEDC extends TestingEnvironment with OpenClinicaDaoComponent with OpenClinicaServiceComponent{
+
+ // override val databaseTuple: (Database, ExtendedProfile) = getDatabasePostgreSQL(properties.getProperty("testDatabaseName"), properties.getProperty("testDatabaseUser"), properties.getProperty("testDatabasePassword"))
 
 
   val openClinicaSchema = new OpenClinicaDatabaseSchema(driver)
@@ -30,20 +32,38 @@ object TestingEnvironmentEDC extends TestingEnvironment with OpenClinicaDaoCompo
   val openClinicaService = new OpenClinicaService
 
   private val inclusionConstraint = Some(DoubleConstraint(configurations = List(Some(1.0), Some(2.0))).toOption.get)
-  private val criterion1: DoubleCriterion = DoubleCriterion(name = "name1", description = "descritpion", inclusionConstraint = inclusionConstraint, strata = Nil).toOption.get
-  private val criterion2: IntegerCriterion = IntegerCriterion(name = "name2", description = "descritpion", inclusionConstraint = None, strata = Nil).toOption.get
+  def criterion1(name: String): DoubleCriterion = DoubleCriterion(name = name, description = "descritpion", inclusionConstraint = inclusionConstraint, strata = Nil).toOption.get
+  def criterion2(name: String): IntegerCriterion = IntegerCriterion(name = name, description = "descritpion", inclusionConstraint = None, strata = Nil).toOption.get
 
   private val connectionOC = new ConnectionOC(location = "localhost", username = "xyz", passwordHash = "abc", 1)
 
-  val item1 = new ItemOC(oid = "name1", criterion = criterion1.asInstanceOf[Criterion[Any, Constraint[Any]]])
-  val item2 = new ItemOC(oid = "name2", criterion = criterion2.asInstanceOf[Criterion[Any, Constraint[Any]]])
+  def item1 = {
+    val name = "name1" + random.nextLong()
+    new ItemOC(oid = name, criterion = criterion1(name).asInstanceOf[Criterion[Any, Constraint[Any]]])
+  }
+  def item2 =  {
+    val name = "name2" + random.nextLong()
+    new ItemOC(oid = name, criterion = criterion2(name).asInstanceOf[Criterion[Any, Constraint[Any]]])
+  }
+  def itemGroup = new ItemGroupOC(oid = "itemGroupOid"+ random.nextLong(), List(item1, item2))
 
-  val itemGroup = new ItemGroupOC(oid = "itemGroupOid", List(item1, item2))
+  def form = new FormOC(oid = "formOid" + random.nextLong(), items = List(itemGroup))
+  def event = new EventOC(oid = "eventOid"+ random.nextLong(), forms = List(form))
 
-  val form = new FormOC(oid = "formOid", items = List(itemGroup))
-  val event = new EventOC(oid = "eventOid", forms = List(form))
-
-
-  def getTrialOC = new TrialOC(name = "testTrialOC", oid ="oid", description = "description", identifier = "testIdentifier", connection = connectionOC, trial = Some(createTrial.copy(criterions = List(criterion1, criterion2))), events = List(event), treatmentItem = None)
+  //TODO treatment item
+  
+  def getTrialOC = {
+    val actEvent = event
+    val crit1 = actEvent.forms.head.items.head.items.head.criterion
+    val crit2 = actEvent.forms.head.items.head.items.last.criterion
+    val trialAct = createTrial.copy(criterions = List(crit1, crit2))
+    val treatmentCriterion = OrdinalCriterion(name ="treatmentProp"+ random.nextDouble() , description ="description", values =  trialAct.treatmentArms.map(arm => arm.name).toSet, inclusionConstraint = None, strata = List()).toOption.get
+    val treatmentItem = new ItemOC(oid = treatmentCriterion.name, criterion = treatmentCriterion.asInstanceOf[Criterion[Any, Constraint[Any]]]) 
+    val treatmentGroup = new ItemGroupOC(oid = "itemGroupOid"+ random.nextLong(), List(treatmentItem))
+    val treatmentForm = new FormOC(oid = "formOid" + random.nextLong(), items = List(treatmentGroup))
+    val treatmentEvent = new EventOC(oid = "eventOid"+ random.nextLong(), forms = List(treatmentForm))
+    val treatmentReferenz = (treatmentEvent, treatmentForm, treatmentGroup, treatmentItem)
+    new TrialOC(name = "testTrialOC"+ random.nextLong(), oid ="oid"+ random.nextLong(), description = "description", identifier = "testIdentifier"+ random.nextLong(), connection = connectionOC, trial = Some(trialAct), events = List(actEvent), treatmentItem = Some(treatmentReferenz))
+  }
 
 }

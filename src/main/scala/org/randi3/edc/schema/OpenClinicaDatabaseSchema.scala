@@ -14,12 +14,12 @@ class OpenClinicaDatabaseSchema (val driver: ExtendedProfile) {
 
   object TrialOCs extends Table[(Int, String, String, String, String, Int, Int)]("OCTrial") {
     def id = column[Int]("id", O PrimaryKey, O AutoInc)
-    def identifier = column[String]("Identifier", O NotNull)
-    def oid = column[String]("Oid", O NotNull)
-    def name = column[String]("Name", O NotNull)
+    def identifier = column[String]("identifier", O NotNull)
+    def oid = column[String]("oid", O NotNull)
+    def name = column[String]("name", O NotNull)
     def metaDataVersionOid = column[String]("metaDataVersionOid", O NotNull)
-    def trialId = column[Int]("TrialId")
-    def treatmentItemOC = column[Int]("TreatmentItemOC")
+    def trialId = column[Int]("trialId")
+    def treatmentItemOC = column[Int]("treatmentItemOC")
     def * = id ~ identifier ~ oid ~ name ~ metaDataVersionOid ~ trialId ~ treatmentItemOC
     def noId = identifier ~ oid ~ name ~ metaDataVersionOid ~ trialId
     def uniqueIdentifier = index("uniqueTrialOCIdentifier", identifier, unique = true)

@@ -173,8 +173,9 @@ trait OpenClinicaServiceComponent {
     def getLocalTrials(): Validation[String, List[TrialOC]] = {
       val user = securityUtility.currentUser.getOrElse(return Failure("Not logged in"))
       openClinicaDao.getAll().toEither match {
-        case Left(error) => Failure(error)
+        case Left(error) => println(error); Failure(error)
         case Right(list) => {
+          println(list)
           Success(list.filter(trialOC =>
             user.rights.map(right => right.trial.id).contains(trialOC.trial.get.id)))
         }

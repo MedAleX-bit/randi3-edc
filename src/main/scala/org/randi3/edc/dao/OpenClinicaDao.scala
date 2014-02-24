@@ -92,41 +92,46 @@ trait OpenClinicaDaoComponent {
 
     def create(trialOC: TrialOC): Validation[String, TrialOC] = {
       onDB {
-        trialService.create(trialOC.trial.getOrElse(return Failure("Trial must be set")).copy(isEDCTrial = true, status = TrialStatus.ACTIVE), currentUser.get).toEither match {
-          case Left(failure) => Failure(failure)
-          case Right(trialId) => {
-
-            threadLocalSession withTransaction {
-              TrialOCs.noId insert (trialOC.identifier, trialOC.oid, trialOC.name, trialOC.metaDataVersionOID, trialId)
-            }
-            val trial = trialDao.get(trialId).toOption.get.get //TODO
-            getId(trialOC.oid).toEither match {
-              case Left(failure) => Failure(failure)
-              case Right(trialOCid) => {
-                createItems(trialOCid, trialOC, trial)
-                createTreatmentItem(trialOCid, trialOC, trial)
-                createTrialSiteMapping(trialOCid, trialOC)
-                threadLocalSession withTransaction {
-                  Connections.noId insert (trialOCid, trialOC.connection.location, trialOC.connection.username, trialOC.connection.passwordHash, trialOC.connection.dataSetId)
-                }
-                get(trialOCid)
-              }
-            }
-          }
+        val trial = {
+          for {
+            trialId <- trialDao.create(trialOC.trial.getOrElse(return Failure("Trial must be set")).copy(isEDCTrial = true, status = TrialStatus.ACTIVE))
+            trialOption <- trialDao.get(trialId)
+          } yield trialOption.getOrElse(return Failure("Trial couldn't be stored."))
+        } match {
+          case Success(trial) => trial
+          case Failure(failure) => return Failure(failure)
         }
-      }
 
+        for {
+          rowsChangedForCreate <- onDBWithTransaction { Success(TrialOCs.noId insert (trialOC.identifier, trialOC.oid, trialOC.name, trialOC.metaDataVersionOID, trial.id)) }
+          trialOCid <- getId(trialOC.oid)
+          itemsRes <- createItems(trialOCid, trialOC, trial)
+          connectionRes <- createConnection(trialOCid, trialOC)
+          trialSiteMappingRes <- createTrialSiteMapping(trialOCid, trialOC)
+          treatmentRes <- createTreatmentItem(trialOCid, trialOC, trial)
+          trialOCDB <- get(trialOCid)
+        } yield trialOCDB
+      }
     }
 
     private def createTrialSiteMapping(trialOCid: Int, trialOC: TrialOC): Validation[String, Boolean] = {
-      TrialSiteMapping.noId insertAll (trialOC.sites.map(site => (trialOCid, site._1, site._2)).toSeq: _*)
-      Success(true)
+      onDBWithTransaction {
+        TrialSiteMapping.noId insertAll (trialOC.sites.map(site => (trialOCid, site._1, site._2)).toSeq: _*)
+        Success(true)
+      }
+    }
+
+    private def createConnection(trialOCid: Int, trialOC: TrialOC): Validation[String, Boolean] = {
+      onDBWithTransaction {
+        Connections.noId insert (trialOCid, trialOC.connection.location, trialOC.connection.username, trialOC.connection.passwordHash, trialOC.connection.dataSetId)
+        Success(true)
+      }
     }
 
     private def createItems(trialOCid: Int, trialOC: TrialOC, trial: Trial): Validation[String, Boolean] = {
       trial.criterions.foreach(criterion => {
         trialOC.getMappedElementsFromCriteria(criterion.asInstanceOf[Criterion[Any, Constraint[Any]]]) match {
-          case None => return Failure("Criterion in OpenClinica trial not found")
+          case None => return Failure("Criterion in OpenClinica trial not found: " + criterion.name)
           case Some(fieldSet) => {
             createFieldSet(trialOCid, criterion, fieldSet).toEither match {
               case Left(failure) => return Failure(failure)
@@ -142,64 +147,33 @@ trait OpenClinicaDaoComponent {
     private def createTreatmentItem(trialOCid: Int, trialOC: TrialOC, trial: Trial): Validation[String, Boolean] = {
       val fieldSet = trialOC.treatmentItem.getOrElse(return Failure("Treatment Item not defined"))
       val treatmentCriterion: OrdinalCriterion = fieldSet._4.criterion.asInstanceOf[OrdinalCriterion]
-      criterionDao.create(treatmentCriterion, trial.id).toOption match {
-        case None => return Failure("Couldn't create Treatment criterion")
-        case Some(criterionId) => {
-          createFieldSet(trialOCid, treatmentCriterion.copy(id = criterionId), fieldSet).toEither match {
-            case Left(failure) => return Failure(failure)
-            case Right(itemId) => {
-              threadLocalSession withTransaction {
-                queryTrialOCFromId(trialOCid).mutate {
-                  r =>
-                    r.row = r.row.copy(_7 = itemId)
-                }
-              }
+      val itemIdentifier = for {
+        criterionId <- criterionDao.create(treatmentCriterion, trial.id)
+        itemId <- createFieldSet(trialOCid, treatmentCriterion.copy(id = criterionId), fieldSet)
+      } yield itemId
+      itemIdentifier match {
+        case Failure(failure) => Failure(failure)
+        case Success(id) => {
+          onDBWithTransaction {
+            queryTrialOCFromId(trialOCid).mutate {
+              r => r.row = r.row.copy(_7 = id)
             }
+            Success(true)
           }
         }
       }
-      Success(true)
     }
 
     /**
      * returns id from Item
      */
     private def createFieldSet(trialOCid: Int, criterion: Criterion[_, Constraint[_]], fieldSet: (EventOC, FormOC, ItemGroupOC, ItemOC)): Validation[String, Int] = {
-      threadLocalSession withTransaction {
-        EventOCs.noId insert (fieldSet._1.oid, trialOCid)
-      }
-      getIdEventOc(trialOCid, fieldSet._1.oid).toEither match {
-        case Left(failure) => return Failure(failure)
-        case Right(eventId) => {
-          threadLocalSession withTransaction {
-            FormOCs.noId insert (fieldSet._2.oid, eventId)
-          }
-          getIdFormOc(eventId, fieldSet._2.oid).toEither match {
-            case Left(failure) => return Failure(failure)
-            case Right(formId) => {
-              threadLocalSession withTransaction {
-                ItemGroupOCs.noId insert (fieldSet._3.oid, formId)
-              }
-              getIdItemGroupOc(formId, fieldSet._3.oid).toEither match {
-                case Left(failure) => return Failure(failure)
-                case Right(itemGroupId) => {
-                  threadLocalSession withTransaction {
-                    ItemOCs.noId insert (fieldSet._4.oid, itemGroupId, criterion.id)
-                  }
-                  val idItem = getIdItemOc(itemGroupId, fieldSet._4.oid)
-
-                  if (idItem.isSuccess && fieldSet._4.ordinalValueMapping != null && !fieldSet._4.ordinalValueMapping.isEmpty) {
-                    fieldSet._4.ordinalValueMapping.iterator.foreach(keyValuePair => {
-                      OrdinalValueMapping.noId insert (idItem.toOption.get, keyValuePair._1, keyValuePair._2)
-                    })
-                  }
-                  idItem
-                }
-              }
-            }
-          }
-        }
-      }
+      for {
+        eventId <- createAndGetEvenOC(trialOCid, fieldSet._1.oid)
+        formId <- createAndGetFormOC(eventId, fieldSet._2.oid)
+        itemGroupId <- createAndGetItemGroupOC(formId, fieldSet._3.oid)
+        itemId <- createAndGetItemOC(itemGroupId, fieldSet._4, criterion)
+      } yield itemId
     }
 
     def getId(trialOid: String): Validation[String, Int] = {
@@ -207,7 +181,7 @@ trait OpenClinicaDaoComponent {
         queryTrialOCFromOid(trialOid).list match {
           case List() => getIdFromTrialSiteIdentifier(trialOid)
           case List(trialOC) => Success(trialOC._1)
-          case _ => println("Duplicated trial oid"); Failure("Duplicated trial oid")
+          case _ => Failure("Duplicated trial oid")
         }
       }
     }
@@ -216,7 +190,7 @@ trait OpenClinicaDaoComponent {
       queryTrialOCFromTrialSiteOid(trialOid).list match {
         case List() => Failure("TrialOC not found")
         case List(trialID) => Success(trialID)
-        case _ => println("Duplicated trial oid"); Failure("Duplicated trial oid")
+        case _ => Failure("Duplicated trial oid")
       }
     }
 
@@ -225,9 +199,23 @@ trait OpenClinicaDaoComponent {
       Failure("EventOC not found")
     }
 
+    private def createAndGetEvenOC(trialOCid: Int, eventOid: String): Validation[String, Int] = {
+      for {
+        rowsChanged <- onDBWithTransaction { Success(EventOCs.noId insert (eventOid, trialOCid)) }
+        id <- getIdEventOc(trialOCid, eventOid)
+      } yield id
+    }
+
     private def getIdFormOc(eventOCid: Int, formOid: String): Validation[String, Int] = {
       for (ts <- queryFormOCFromOidAndEventOCid(formOid, eventOCid)) return Success(ts._1)
       Failure("FormOC not found")
+    }
+
+    private def createAndGetFormOC(eventOCid: Int, formOid: String): Validation[String, Int] = {
+      for {
+        rowsChanged <- onDBWithTransaction { Success(FormOCs.noId insert (formOid, eventOCid)) }
+        id <- getIdFormOc(eventOCid, formOid)
+      } yield id
     }
 
     private def getIdItemGroupOc(formOCid: Int, itemGroupOid: String): Validation[String, Int] = {
@@ -235,9 +223,36 @@ trait OpenClinicaDaoComponent {
       Failure("ItemGroupOC not found")
     }
 
-    private def getIdItemOc(itemGroupOid: Int, itemOid: String): Validation[String, Int] = {
-      for (ts <- queryItemOCFromOidAndItemGroupOCid(itemOid, itemGroupOid)) return Success(ts._1)
+    private def createAndGetItemGroupOC(formId: Int, itemGroupOid: String): Validation[String, Int] = {
+      for {
+        rowsChanged <- onDBWithTransaction { Success(ItemGroupOCs.noId insert (itemGroupOid, formId)) }
+        id <- getIdItemGroupOc(formId, itemGroupOid)
+      } yield id
+    }
+
+    private def getIdItemOc(itemGroupId: Int, itemOid: String): Validation[String, Int] = {
+      for (ts <- queryItemOCFromOidAndItemGroupOCid(itemOid, itemGroupId)) return Success(ts._1)
       Failure("ItemOC not found")
+    }
+
+    private def createAndGetItemOC(itemGroupId: Int, itemOC: ItemOC, criterion: Criterion[_, Constraint[_]]): Validation[String, Int] = {
+      val idItem = for {
+        rowsChanged <- onDBWithTransaction { Success(ItemOCs.noId insert (itemOC.oid, itemGroupId, criterion.id)) }
+        id <- getIdItemOc(itemGroupId, itemOC.oid)
+      } yield id
+
+      if (idItem.isSuccess && itemOC.ordinalValueMapping != null && !itemOC.ordinalValueMapping.isEmpty) {
+        itemOC.ordinalValueMapping.iterator.foreach(keyValuePair => {
+          onDBWithTransaction {
+            Success(OrdinalValueMapping.noId insert (idItem.toOption.get, keyValuePair._1, keyValuePair._2))
+          } match {
+            case Failure(failure) => return Failure(failure)
+            case _ =>
+          }
+        })
+      }
+      idItem
+
     }
 
     def updateTrialOC(trialOC: TrialOC): Validation[String, TrialOC] = {
@@ -247,43 +262,32 @@ trait OpenClinicaDaoComponent {
     def get(id: Int): Validation[String, TrialOC] = {
       onDB {
         val result = queryTrialOCFromId(id).list()
-        if (result.size == 1) {
+        if (result.isEmpty || result.size > 1) {
+          Failure("TrialOC not found")
+        } else {
           val trialOCRow = result.head
 
-          trialDao.get(trialOCRow._6).toEither match {
-            case Left(failure) => Failure(failure)
-            case Right(None) => Failure("Trial not found")
-            case Right(Some(trial)) => {
-              getConnection(id).toEither match {
-                case Left(failure) => Failure("Connection not found: " + failure)
-                case Right(connection) => {
-                  getTrialSiteMapping(id).toEither match {
-                    case Left(failure) => Failure("TrialSite Mapping failure:" + failure)
-                    case Right(trialSites) => {
-                      getEventOCs(id, trial.criterions.asInstanceOf[List[Criterion[Any, Constraint[Any]]]]).toEither match {
-                        case Left(failure) => Failure("Failure with EventOC: " + failure)
-                        case Right(events) => {
-                          val treatmentItemOID = queryItemOIDfromId(trialOCRow._7).list().head._2
-                          val treatmentItem = findTreatmentFieldSet(events, treatmentItemOID)
-                          val cleanTrial = if (treatmentItem.isDefined) {
-                            trial.copy(criterions = trial.criterions.filter(crit => crit.id != treatmentItem.get._4.criterion.id))
-                          } else trial
-                          Success(TrialOC(trialOCRow._1, 0, trialOCRow._2, trialOCRow._3, trialOCRow._4, trial.description, trialOCRow._5, events, Some(cleanTrial), connection, treatmentItem, trialSites))
-                        }
-                      }
-                    }
-                  }
-
-                }
-              }
-
-            }
+          val trial = trialDao.get(trialOCRow._6) match {
+            case Failure(failure) => return Failure(failure)
+            case Success(None) => return Failure("Trial not found.")
+            case Success(Some(trialDB)) => trialDB
           }
-        } else {
-          Failure("TrialOC not found")
+
+          for {
+            connection <- getConnection(id)
+            trialSites <- getTrialSiteMapping(id)
+            events <- getEventOCs(id, trial.criterions.asInstanceOf[List[Criterion[Any, Constraint[Any]]]])
+            treatmentItemOID <- onDB { Success(queryItemOIDfromId(trialOCRow._7).list().head._2) }
+            treatmentItem <- Success(findTreatmentFieldSet(events, treatmentItemOID))
+            cleanTrial <- Success {
+              if (treatmentItem.isDefined) {
+                trial.copy(criterions = trial.criterions.filter(crit => crit.id != treatmentItem.get._4.criterion.id))
+              } else trial
+            }
+            trialOC <- Success(TrialOC(trialOCRow._1, 0, trialOCRow._2, trialOCRow._3, trialOCRow._4, trial.description, trialOCRow._5, events, Some(cleanTrial), connection, treatmentItem, trialSites))
+          } yield trialOC
         }
       }
-
     }
 
     private def findTreatmentFieldSet(events: List[EventOC], treatmentItemOID: String): Option[(EventOC, FormOC, ItemGroupOC, ItemOC)] = {
@@ -381,7 +385,7 @@ trait OpenClinicaDaoComponent {
     def getAll(): Validation[String, List[TrialOC]] = {
       onDB {
         Success(allTrials.map(trialOCRow => {
-          get(trialOCRow._1).toOption.getOrElse(return Failure("Error loding the local OpenClinica Trial"))
+          get(trialOCRow._1).toOption.getOrElse { return Failure("Error loding the local OpenClinica Trial") }
         }))
       }
     }

@@ -172,5 +172,46 @@
 		<renameColumn tableName="OCTrialSiteMapping" oldColumnName="ID"
 			newColumnName="id" columnDataType="INT" />
 	</changeSet>
+	
+    <changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-10_psql">
+         <preConditions onFail="MARK_RAN">
+			<dbms type="postgresql" />
+		</preConditions>
+			<sql>
+			ALTER TABLE "OCConnection" ALTER COLUMN "TrialOCId" TYPE integer USING (trim("TrialOCId")::integer);
+		</sql>		 
+	</changeSet>
+	
+	 <changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-10_mysql">
+         <preConditions onFail="MARK_RAN">
+			<dbms type="postgresql" />
+		</preConditions>
+		 <modifyDataType
+            columnName="TrialOCId"
+            newDataType="INT"
+            tableName="OCConnection"/>
+	</changeSet>
+	
+	 <changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-11">
+	  <modifyDataType
+            columnName="TreatmentItemOC"
+            newDataType="INT"
+            tableName="OCTrial"/>
+    </changeSet>
+
+    <changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-12">
+      <modifyDataType
+            columnName="DataSetId"
+            newDataType="INT"
+            tableName="OCConnection"/>
+    </changeSet>
+    
+   <changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-13">
+		<renameColumn tableName="OCTrial" oldColumnName="Oid" newColumnName="oid"/>
+		<renameColumn tableName="OCTrial" oldColumnName="Identifier" newColumnName="identifier"/>
+		<renameColumn tableName="OCTrial" oldColumnName="Name" newColumnName="name"/>
+		<renameColumn tableName="OCTrial" oldColumnName="TrialId" newColumnName="trialId"/>
+		<renameColumn tableName="OCTrial" oldColumnName="TreatmentItemOC" newColumnName="treatmentItemOC"/>
+	</changeSet>
 
 </databaseChangeLog>
