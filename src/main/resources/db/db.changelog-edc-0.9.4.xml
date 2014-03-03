@@ -206,12 +206,12 @@
             tableName="OCConnection"/>
     </changeSet>
     
-   <changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-13">
-		<renameColumn tableName="OCTrial" oldColumnName="Oid" newColumnName="oid"/>
-		<renameColumn tableName="OCTrial" oldColumnName="Identifier" newColumnName="identifier"/>
-		<renameColumn tableName="OCTrial" oldColumnName="Name" newColumnName="name"/>
-		<renameColumn tableName="OCTrial" oldColumnName="TrialId" newColumnName="trialId"/>
-		<renameColumn tableName="OCTrial" oldColumnName="TreatmentItemOC" newColumnName="treatmentItemOC"/>
+   <changeSet author="dschrimpf" id="org.randi3.edc-0.9.4-13a">
+		<renameColumn tableName="OCTrial" oldColumnName="Oid" newColumnName="oid" columnDataType="VARCHAR(254)"/>
+		<renameColumn tableName="OCTrial" oldColumnName="Identifier" newColumnName="identifier" columnDataType="VARCHAR(254)"/>
+		<renameColumn tableName="OCTrial" oldColumnName="Name" newColumnName="name" columnDataType="VARCHAR(254)"/>
+		<renameColumn tableName="OCTrial" oldColumnName="TrialId" newColumnName="trialId" columnDataType="INT"/>
+		<renameColumn tableName="OCTrial" oldColumnName="TreatmentItemOC" newColumnName="treatmentItemOC" columnDataType="TINYINT"/>
 	</changeSet>
 
 </databaseChangeLog>

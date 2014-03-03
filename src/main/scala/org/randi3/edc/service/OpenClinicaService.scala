@@ -145,7 +145,6 @@ trait OpenClinicaServiceComponent {
                                         <v1:dataSetIdentifier>{ dataSetId }</v1:dataSetIdentifier>
                                       </v1:exportDataSetRequest>, trialOC.connection.username, trialOC.connection.passwordHash)
       val result = sendMessage(trialOC.connection.location + "/ws/data/v1", request)
-      println(result)
       val odm = XML.loadString((result.toOption.getOrElse(return List()) \\ "odm").text)
       getAllSubjectsFromODM(odm, trialOC)
     }
@@ -173,9 +172,8 @@ trait OpenClinicaServiceComponent {
     def getLocalTrials(): Validation[String, List[TrialOC]] = {
       val user = securityUtility.currentUser.getOrElse(return Failure("Not logged in"))
       openClinicaDao.getAll().toEither match {
-        case Left(error) => println(error); Failure(error)
+        case Left(error) => Failure(error)
         case Right(list) => {
-          println(list)
           Success(list.filter(trialOC =>
             user.rights.map(right => right.trial.id).contains(trialOC.trial.get.id)))
         }
