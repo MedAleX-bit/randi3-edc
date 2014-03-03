@@ -8,7 +8,7 @@
 		<version>0.9.4</version>
 	</parent>
 	<artifactId>randi3-edc</artifactId>
-	<version>0.9.4</version>
+	<version>0.9.4.1</version>
     <name>RANDI2 - EDC module</name>
     <description>EDC module for RANDI2 (at the moment only for OpenClinica)</description>
     <url>http://randi2.org</url>
