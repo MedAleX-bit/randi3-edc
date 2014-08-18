@@ -136,7 +136,17 @@ object CDISCToModelConverter {
     val criterion = criterions.find(crit => crit.name == itemOID).orElse(return extractSubjectProperties(itemNodes.tail, criterions, trialOC)).get.asInstanceOf[Criterion[Any, Constraint[Any]]]
     val value = if (criterion.isInstanceOf[OrdinalCriterion]) {
       trialOC.getMappedElementsFromCriteria(criterion).get._4.ordinalValueMapping.get((itemNodes.head \ "@Value").text).get
-    } else (itemNodes.head \ "@Value").text
+    } else {
+      val text = (itemNodes.head \ "@Value").text
+      if(criterion.isInstanceOf[IntegerCriterion]){
+        text.toInt
+      }else if(criterion.isInstanceOf[DoubleCriterion]) {
+        text.toDouble
+      }else if(criterion.isInstanceOf[DateCriterion]) {
+        //TODO
+        text
+      }else text
+    }
     SubjectProperty(criterion = criterion.asInstanceOf[Criterion[Any, Constraint[Any]]], value = value).toOption.get :: extractSubjectProperties(itemNodes.tail, criterions, trialOC)
   }
 

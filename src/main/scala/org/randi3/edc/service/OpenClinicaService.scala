@@ -254,7 +254,6 @@ trait OpenClinicaServiceComponent {
       val fullSubjects = getSubjectsData(trialOC, trialOC.connection.dataSetId, List()).filter(subject => !trialSubjectIdentifier.contains(subject.identifier))
 
       val dbTrial = trialOC.trial.get
-
       fullSubjects.foreach(trialSubject => {
         val subject = trialSubject.copy(investigatorUserName = user.username, trialSite = if (trialSubject.trialSite.id < 0) user.site else trialSubject.trialSite)
         dbTrial.randomize(subject).toEither match {
@@ -323,8 +322,8 @@ trait OpenClinicaServiceComponent {
                                                 <FormData FormOID={ trialOC.treatmentItem.get._1.forms.head.oid }>
                                                   <ItemGroupData ItemGroupOID={ trialOC.treatmentItem.get._1.forms.head.items.head.oid } TransactionType="Insert">
                                                     <ItemData ItemOID={ trialOC.treatmentItem.get._1.forms.head.items.head.items.head.oid } Value={
-                                                      trialOC.treatmentItem.get._1.forms.head.items.head.items.head.ordinalValueMapping.find(entry => entry._2 == treatmentArm.name).get._1
-                                                    }/>
+                                                       trialOC.treatmentItem.get._1.forms.head.items.head.items.head.ordinalValueMapping.find(entry => entry._2 == treatmentArm.name).get._1
+                                                    }/> 
                                                   </ItemGroupData>
                                                 </FormData>
                                               </StudyEventData>
@@ -336,8 +335,6 @@ trait OpenClinicaServiceComponent {
       val result = sendMessage(trialOC.connection.location + "/ws/data/v1", request)
       //TODO http status codes
       Success(true)
-
     }
-
   }
 }
